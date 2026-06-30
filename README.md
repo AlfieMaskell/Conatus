@@ -55,21 +55,24 @@ No build, no dependencies. Either:
 Controls: **click** to stir the water · **Space** pause · **R** reset · **B**
 toggle bonds.
 
-## Status — Step one: conserved physics
+## Status — Step two: the water
 
-The current build has **no biology**. It is the foundation: particles, breakable
-spring bonds (soft bodies), buoyancy in a water medium, drag, and
-particle-particle collision via a spatial hash. The HUD shows the thesis directly
-— **total mass stays constant** (matter is conserved) while **kinetic energy
-bleeds away** (energy is open). Denser-than-water blobs sink, lighter ones rise.
+Still **no biology** — but the tank is now an environment. A grid-based
+stable-fluids solver gives the water real currents, eddies and wakes; bodies are
+dragged relative to the *local* flow and push back on it, so a moving organism
+leaves a trail and a passive grain gets carried along. Riding on the same grid
+are a **dissolved-nutrient field** (welling up from the floor, swept around by
+the currents) and a depth-based **light field** (bright at the surface, dark in
+the deep) — the two resources the first organism will live on. Matter is still
+conserved to the particle; the fluid stays stable and real-time.
 
-The point of this step is trust: prove the physics conserves matter to the
-particle before any cell ever metabolises.
+Controls: **click** to stir · **Space** pause · **R** reset · **B** bonds ·
+**N** nutrient field · **F** flow streaks · **H** show/hide stats.
 
 ### Roadmap (rough order of payoff)
 
-1. ✅ Conserved-physics sandbox (this step)
-2. Grid fluid field (currents) + dissolved-nutrient and light fields on the same grid
+1. ✅ Conserved-physics sandbox
+2. ✅ Grid fluid field (currents) + dissolved-nutrient and light fields on the same grid
 3. First organism: membrane-bounded photoautotroph — eats light + dissolved matter, grows, divides by fission
 4. Sensor cells + tiny neural controllers → emergent steering, feeding, fleeing
 5. Predation and a real food web; decomposition closes the matter loop

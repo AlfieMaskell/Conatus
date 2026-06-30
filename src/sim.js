@@ -98,6 +98,25 @@
       // can show energy LEAVING the system (the open half of "matter-closed,
       // energy-open").
       this.energyDissipated = 0;
+
+      // --- the water: a grid fluid field (currents) that carries a dissolved
+      // nutrient scalar, plus a depth-based light field. The fluid is part of
+      // the simulation core; see fluid.js. Particles are now dragged relative
+      // to the LOCAL water velocity, and push back on it, leaving wakes. ---
+      this.time = 0;
+      this.fluidCellSize = 20;
+      this.fluidCoupling = 2.0;   // how hard a moving body pushes the water
+      this.ambientStir = 220;     // gentle background circulation
+      this.nutrientSource = 1.2;  // dissolved-nutrient upwelling at the floor
+      this.lightDepth = 0.45;     // larger => light reaches deeper
+      const FluidCls = global.Conatus && global.Conatus.Fluid;
+      this.fluid = FluidCls ? new FluidCls(width, height, this.fluidCellSize, {}) : null;
+    }
+
+    // Light at a world position: full at the surface, falling off with depth.
+    // Cheap and depth-only for now; later, matter above a point can shade it.
+    lightAt(x, y) {
+      return Math.exp(-(y / this.height) / this.lightDepth);
     }
 
     addParticle(p) {
@@ -167,20 +186,31 @@
         parts[i].fy = 0;
       }
 
-      // 2) body forces: gravity + buoyancy, then medium drag.
+      // 2) body forces: gravity + buoyancy, then drag relative to the water.
       //    A particle displaces water equal to its area; if it is denser than
       //    water it sinks, if lighter it rises. Net vertical force:
       //        (mass - waterDensity * area) * gravity
+      const fluid = this.fluid;
       for (let i = 0; i < n; i++) {
         const p = parts[i];
         const area = Math.PI * p.radius * p.radius;
         const displaced = this.waterDensity * area;
         p.fy += (p.mass - displaced) * this.gravity;
 
-        // Linear drag opposes motion. This is where kinetic energy LEAVES the
-        // system as (notional) heat — the simulation's arrow of time.
-        p.fx += -this.dragK * p.vx;
-        p.fy += -this.dragK * p.vy;
+        // Drag is relative to the LOCAL water velocity, so currents carry bodies
+        // along. With still water this reduces to the old rest-frame drag, and
+        // it is still where kinetic energy LEAVES the system — the arrow of time.
+        let vfx = 0, vfy = 0;
+        if (fluid) { const s = fluid.sampleVelocity(p.x, p.y); vfx = s.vx; vfy = s.vy; }
+        p.fx += this.dragK * (vfx - p.vx);
+        p.fy += this.dragK * (vfy - p.vy);
+
+        // Newton's third law: the body pushes back on the water, leaving a wake.
+        if (fluid) {
+          fluid.addVelocity(p.x, p.y,
+            this.fluidCoupling * (p.vx - vfx),
+            this.fluidCoupling * (p.vy - vfy));
+        }
       }
 
       // 3) bond spring forces (Hookean + along-bond damping)
@@ -288,6 +318,26 @@
         const lost = keBefore - keAfter;
         if (lost > 0) this.energyDissipated += lost;
       }
+
+      // 7) advance the medium: stir it gently, feed dissolved nutrient up from
+      //    the floor, then step the fluid + scalar fields.
+      if (fluid) {
+        this.time += dt;
+        const W = this.width, H = this.height;
+        const s = this.ambientStir;
+        const phase = Math.cos(this.time * 0.25);
+        // a slow, breathing gyre so the water is alive even before bodies move much
+        fluid.addVelocity(W * 0.30, H * 0.45, s * phase, 0);
+        fluid.addVelocity(W * 0.70, H * 0.45, -s * phase, 0);
+        fluid.addVelocity(W * 0.50, H * 0.20, 0, s * 0.5 * Math.sin(this.time * 0.2));
+        // dissolved-nutrient upwelling along the floor (the base matter supply)
+        const cols = 6;
+        for (let c = 0; c < cols; c++) {
+          fluid.addNutrient(((c + 0.5) / cols) * W, H - this.fluidCellSize, this.nutrientSource);
+        }
+        fluid.velStep(dt);
+        fluid.densStep(dt);
+      }
     }
 
     // Apply a radial impulse (used by the "poke" input) — still conserves mass,
@@ -309,13 +359,11 @@
 
   // Export for either a browser global or Node (used by the headless tests),
   // without assuming a specific module system.
-  const api = { Sim, Particle, Bond };
+  global.Conatus = global.Conatus || {};
+  global.Conatus.Sim = Sim;
+  global.Conatus.Particle = Particle;
+  global.Conatus.Bond = Bond;
   if (typeof module !== "undefined" && module.exports) {
-    module.exports = api;
-  } else {
-    global.Conatus = global.Conatus || {};
-    global.Conatus.Sim = Sim;
-    global.Conatus.Particle = Particle;
-    global.Conatus.Bond = Bond;
+    module.exports = { Sim, Particle, Bond };
   }
 })(typeof window !== "undefined" ? window : globalThis);

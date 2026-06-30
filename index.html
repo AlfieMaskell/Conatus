@@ -36,12 +36,30 @@
       background: rgba(4,20,31,0.72);
       border: 1px solid rgba(120,170,190,0.25);
       border-radius: 8px;
-      padding: 10px 12px;
+      padding: 20px 12px 10px;
       font-size: 12px; line-height: 1.7;
       backdrop-filter: blur(3px);
       pointer-events: none;
       min-width: 220px;
     }
+    #hud.hidden { display: none; }
+    #hud-close {
+      position: absolute; top: 5px; right: 7px;
+      pointer-events: auto; cursor: pointer;
+      background: transparent; border: none;
+      color: #6f97a6; font-size: 16px; line-height: 1; padding: 2px 5px;
+    }
+    #hud-close:hover { color: #eaf6fb; }
+    #hud-open {
+      position: absolute; top: 12px; left: 12px; display: none;
+      pointer-events: auto; cursor: pointer;
+      background: rgba(4,20,31,0.72); border: 1px solid rgba(120,170,190,0.25);
+      border-radius: 6px; color: #bfe0ec;
+      font-family: inherit; font-size: 11px; letter-spacing: 0.1em; padding: 6px 10px;
+      backdrop-filter: blur(3px);
+    }
+    #hud-open:hover { border-color: rgba(120,170,190,0.5); }
+    #hud-open.show { display: block; }
     #hud .row { display: flex; justify-content: space-between; gap: 18px; }
     #hud .k { color: #6f97a6; }
     #hud .v { color: #eaf6fb; font-variant-numeric: tabular-nums; }
@@ -68,24 +86,30 @@
     <div id="stage">
       <canvas id="tank"></canvas>
       <div id="hud">
+        <button id="hud-close" title="hide stats (H)" aria-label="hide stats">×</button>
         <div class="row"><span class="k">matter (mass)</span><span class="v good" id="hud-mass">—</span></div>
         <div class="row"><span class="k">particles</span><span class="v" id="hud-count">—</span></div>
         <div class="row"><span class="k">kinetic energy</span><span class="v" id="hud-ke">—</span></div>
         <div class="row"><span class="k">energy dissipated</span><span class="v leak" id="hud-diss">—</span></div>
+        <div class="row"><span class="k">flow speed (peak)</span><span class="v" id="hud-flow">—</span></div>
+        <div class="row"><span class="k">dissolved nutrient</span><span class="v" id="hud-nut">—</span></div>
         <div class="row"><span class="k">fps</span><span class="v" id="hud-fps">—</span></div>
         <div class="row"><span class="k">state</span><span class="v" id="hud-state">—</span></div>
         <div class="note">matter is <span class="good">conserved</span> (mass holds constant);
         energy <span class="leak">leaks away</span> through drag. matter-closed, energy-open.</div>
       </div>
+      <button id="hud-open" title="show stats (H)">stats</button>
       <footer>
-        <span>click to stir · <kbd>Space</kbd> pause · <kbd>R</kbd> reset · <kbd>B</kbd> bonds</span>
+        <span>click to stir · <kbd>Space</kbd> pause · <kbd>R</kbd> reset · <kbd>B</kbd> bonds · <kbd>N</kbd> nutrient · <kbd>F</kbd> flow · <kbd>H</kbd> stats</span>
         <span>denser-than-water sinks · lighter floats</span>
       </footer>
     </div>
   </div>
 
   <!-- classic scripts, loaded in dependency order, so index.html works on a
-       plain file:// open with no module/CORS friction and no build step. -->
+       plain file:// open with no module/CORS friction and no build step.
+       fluid.js must load before sim.js (the Sim constructs a Fluid). -->
+  <script src="src/fluid.js"></script>
   <script src="src/sim.js"></script>
   <script src="src/render.js"></script>
   <script src="src/main.js"></script>

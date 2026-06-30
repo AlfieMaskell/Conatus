@@ -13,14 +13,25 @@
   const { Sim, Particle, Renderer } = window.Conatus;
 
   const canvas = document.getElementById("tank");
+  const hudEl = document.getElementById("hud");
+  const hudOpenBtn = document.getElementById("hud-open");
   const hud = {
     mass: document.getElementById("hud-mass"),
     count: document.getElementById("hud-count"),
     ke: document.getElementById("hud-ke"),
     diss: document.getElementById("hud-diss"),
+    flow: document.getElementById("hud-flow"),
+    nut: document.getElementById("hud-nut"),
     fps: document.getElementById("hud-fps"),
     state: document.getElementById("hud-state"),
   };
+
+  function setHud(visible) {
+    hudEl.classList.toggle("hidden", !visible);
+    hudOpenBtn.classList.toggle("show", !visible);
+  }
+  document.getElementById("hud-close").addEventListener("click", () => setHud(false));
+  hudOpenBtn.addEventListener("click", () => setHud(true));
 
   let sim, renderer;
   let paused = false;
@@ -135,6 +146,11 @@
     hud.diss.textContent = t.energyDissipated.toFixed(0);
     hud.fps.textContent = fpsEMA.toFixed(0);
     hud.state.textContent = paused ? "paused" : "running";
+    if (sim.fluid) {
+      const ft = sim.fluid.totals();
+      hud.flow.textContent = ft.maxSpeed.toFixed(0) + " px/s";
+      hud.nut.textContent = ft.nutrient.toFixed(1);
+    }
   }
 
   // ---- input ----
@@ -144,6 +160,9 @@
     if (e.code === "Space") { paused = !paused; e.preventDefault(); }
     if (e.key === "r" || e.key === "R") { seed(); }
     if (e.key === "b" || e.key === "B") { renderer.showBonds = !renderer.showBonds; }
+    if (e.key === "n" || e.key === "N") { renderer.showNutrient = !renderer.showNutrient; }
+    if (e.key === "f" || e.key === "F") { renderer.showFlow = !renderer.showFlow; }
+    if (e.key === "h" || e.key === "H") { setHud(hudEl.classList.contains("hidden")); }
   });
 
   canvas.addEventListener("pointerdown", (e) => {

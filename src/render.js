@@ -3,10 +3,10 @@
  * Copyright (C) 2026 Alfie Maskell. Licensed under the GNU AGPL v3 (see LICENSE).
  *
  * THE RENDERER. It only ever READS simulation state and draws it. It must not
- * mutate the sim, and the sim must not know it exists. If you ever find the
- * renderer changing particle data, stop — that coupling is the thing we are
- * protecting against, because it is what would turn a future Canvas->WebGL
- * swap into a rewrite.
+ * mutate the sim, and the sim must not know it exists.
+ *
+ * Layers (back to front): light-field water column, dissolved-nutrient field,
+ * (optional) flow streaks, bonds, particles.
  */
 
 (function (global) {
@@ -18,38 +18,85 @@
       this.ctx = canvas.getContext("2d");
       this.sim = sim;
       this.showBonds = true;
+      this.showNutrient = true;
+      this.showFlow = false;
     }
 
-    // Map a particle's density (relative to water) to a colour:
-    // lighter-than-water (buoyant) -> warm/pale, denser (sinks) -> cool/dark.
     _densityColor(density, water) {
-      const ratio = density / water; // <1 floats, >1 sinks
-      // clamp ratio to a sensible range for colouring
+      const ratio = density / water;
       const t = Math.max(0, Math.min(1, (ratio - 0.5) / 1.5));
-      // interpolate from warm pale (buoyant) to deep teal (heavy)
       const r = Math.round(235 * (1 - t) + 40 * t);
       const g = Math.round(225 * (1 - t) + 150 * t);
       const b = Math.round(190 * (1 - t) + 175 * t);
       return `rgb(${r},${g},${b})`;
     }
 
+    // Water column shaded by the actual light field (bright surface -> dark deep).
+    _drawWater(w, h) {
+      const ctx = this.ctx;
+      const grad = ctx.createLinearGradient(0, 0, 0, h);
+      const stops = 6;
+      for (let i = 0; i <= stops; i++) {
+        const y = (i / stops) * h;
+        const L = this.sim.lightAt ? this.sim.lightAt(w * 0.5, y) : 1 - y / h;
+        // mix deep (#04141f) -> lit surface (#0f4a66) by light level
+        const r = Math.round(4 + (15 - 4) * L);
+        const g = Math.round(20 + (74 - 20) * L);
+        const b = Math.round(31 + (102 - 31) * L);
+        grad.addColorStop(i / stops, `rgb(${r},${g},${b})`);
+      }
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, w, h);
+    }
+
+    // Dissolved-nutrient concentration as a soft green haze, cell by cell.
+    _drawNutrient() {
+      const f = this.sim.fluid;
+      if (!f) return;
+      const ctx = this.ctx;
+      const hh = f.h;
+      for (let j = 1; j <= f.Ny; j++) {
+        for (let i = 1; i <= f.Nx; i++) {
+          const d = f.dens[f.IX(i, j)];
+          if (d <= 0.01) continue;
+          const a = Math.min(0.45, d * 0.4);
+          ctx.fillStyle = `rgba(120,210,150,${a})`;
+          ctx.fillRect((i - 1) * hh, (j - 1) * hh, hh + 1, hh + 1);
+        }
+      }
+    }
+
+    // Flow field as faint streaks from each cell centre.
+    _drawFlow() {
+      const f = this.sim.fluid;
+      if (!f) return;
+      const ctx = this.ctx;
+      const hh = f.h;
+      ctx.strokeStyle = "rgba(150,200,220,0.25)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      const step = 1;
+      for (let j = 1; j <= f.Ny; j += step) {
+        for (let i = 1; i <= f.Nx; i += step) {
+          const cx = (i - 0.5) * hh, cy = (j - 0.5) * hh;
+          const u = f.u[f.IX(i, j)], v = f.v[f.IX(i, j)];
+          const sc = 0.08;
+          ctx.moveTo(cx, cy);
+          ctx.lineTo(cx + u * sc, cy + v * sc);
+        }
+      }
+      ctx.stroke();
+    }
+
     draw() {
       const ctx = this.ctx;
       const sim = this.sim;
-      const w = sim.width;
-      const h = sim.height;
+      const w = sim.width, h = sim.height;
 
-      // --- water column: a depth gradient. Brighter near the surface, darker
-      // with depth. This is purely cosmetic now, but it foreshadows the light
-      // field that will drive photosynthesis in a later step. ---
-      const grad = ctx.createLinearGradient(0, 0, 0, h);
-      grad.addColorStop(0, "#0d3b54");   // sunlit surface
-      grad.addColorStop(0.5, "#08293c");
-      grad.addColorStop(1, "#04141f");   // dark deep
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, w, h);
+      this._drawWater(w, h);
+      if (this.showNutrient) this._drawNutrient();
+      if (this.showFlow) this._drawFlow();
 
-      // --- bonds ---
       if (this.showBonds) {
         ctx.lineWidth = 2;
         ctx.strokeStyle = "rgba(180,210,220,0.35)";
@@ -65,7 +112,6 @@
         ctx.stroke();
       }
 
-      // --- particles ---
       const parts = sim.particles;
       for (let i = 0; i < parts.length; i++) {
         const p = parts[i];
@@ -73,7 +119,6 @@
         ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
         ctx.fillStyle = this._densityColor(p.density, sim.waterDensity);
         ctx.fill();
-        // subtle rim so overlapping grains read separately
         ctx.lineWidth = 1;
         ctx.strokeStyle = "rgba(0,0,0,0.25)";
         ctx.stroke();
@@ -81,10 +126,7 @@
     }
   }
 
-  if (typeof module !== "undefined" && module.exports) {
-    module.exports = { Renderer };
-  } else {
-    global.Conatus = global.Conatus || {};
-    global.Conatus.Renderer = Renderer;
-  }
+  global.Conatus = global.Conatus || {};
+  global.Conatus.Renderer = Renderer;
+  if (typeof module !== "undefined" && module.exports) module.exports = { Renderer };
 })(typeof window !== "undefined" ? window : globalThis);
