@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<!--
+  Conatus — a soft-body artificial-life simulation.
+  Copyright (C) 2026 Alfie Maskell. Licensed under the GNU AGPL v3 (see LICENSE).
+
+  STEP ONE: conserved-physics sandbox. No biology yet — just matter behaving.
+  Open this file directly in a browser, or serve the folder. No build step.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Conatus — step one: conserved physics</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; height: 100%;
+      background: #04141f;
+      font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      color: #cfe6ee;
+      overflow: hidden;
+    }
+    #app { display: flex; flex-direction: column; height: 100vh; }
+    header {
+      padding: 10px 16px;
+      border-bottom: 1px solid rgba(120,170,190,0.2);
+      display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+    }
+    header h1 { font-size: 15px; margin: 0; letter-spacing: 0.18em; text-transform: uppercase; color: #8fd3e8; font-weight: 600; }
+    header .sub { font-size: 12px; color: #6f97a6; }
+    #stage { position: relative; flex: 1; }
+    #tank { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+    #hud {
+      position: absolute; top: 12px; left: 12px;
+      background: rgba(4,20,31,0.72);
+      border: 1px solid rgba(120,170,190,0.25);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 12px; line-height: 1.7;
+      backdrop-filter: blur(3px);
+      pointer-events: none;
+      min-width: 220px;
+    }
+    #hud .row { display: flex; justify-content: space-between; gap: 18px; }
+    #hud .k { color: #6f97a6; }
+    #hud .v { color: #eaf6fb; font-variant-numeric: tabular-nums; }
+    #hud .note { margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(120,170,190,0.18); color: #5e8595; font-size: 11px; }
+    #hud .good { color: #79e0a8; }
+    #hud .leak { color: #e8b87a; }
+    footer {
+      position: absolute; bottom: 10px; left: 12px; right: 12px;
+      font-size: 11px; color: #5e8595;
+      display: flex; justify-content: space-between; pointer-events: none;
+    }
+    kbd {
+      background: rgba(120,170,190,0.14); border: 1px solid rgba(120,170,190,0.3);
+      border-radius: 4px; padding: 1px 5px; font-size: 10px; color: #bfe0ec;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>Conatus</h1>
+      <span class="sub">step one — conserved physics · no biology yet</span>
+    </header>
+    <div id="stage">
+      <canvas id="tank"></canvas>
+      <div id="hud">
+        <div class="row"><span class="k">matter (mass)</span><span class="v good" id="hud-mass">—</span></div>
+        <div class="row"><span class="k">particles</span><span class="v" id="hud-count">—</span></div>
+        <div class="row"><span class="k">kinetic energy</span><span class="v" id="hud-ke">—</span></div>
+        <div class="row"><span class="k">energy dissipated</span><span class="v leak" id="hud-diss">—</span></div>
+        <div class="row"><span class="k">fps</span><span class="v" id="hud-fps">—</span></div>
+        <div class="row"><span class="k">state</span><span class="v" id="hud-state">—</span></div>
+        <div class="note">matter is <span class="good">conserved</span> (mass holds constant);
+        energy <span class="leak">leaks away</span> through drag. matter-closed, energy-open.</div>
+      </div>
+      <footer>
+        <span>click to stir · <kbd>Space</kbd> pause · <kbd>R</kbd> reset · <kbd>B</kbd> bonds</span>
+        <span>denser-than-water sinks · lighter floats</span>
+      </footer>
+    </div>
+  </div>
+
+  <!-- classic scripts, loaded in dependency order, so index.html works on a
+       plain file:// open with no module/CORS friction and no build step. -->
+  <script src="src/sim.js"></script>
+  <script src="src/render.js"></script>
+  <script src="src/main.js"></script>
+</body>
+</html>
